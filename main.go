@@ -6,14 +6,29 @@ import (
 
 func main() {
 	fptr, err := os.OpenFile("test.txt", os.O_RDWR|os.O_CREATE, 0666)
-	//write to beginning of file - note that this should be removed via fRazor
-	fptr.WriteString("OMG THIS FILE HAS BEEN OPENED WHO DID THIS?")
 	if err != nil {
 		panic(err)
 	}
+	//write to beginning of file - note that this should be removed via fRazor
+	for {
+		fptr.WriteString("logging\n")
+		fptr2, stat := RazorCheck(fptr, 500, .2)
+		if stat == "finished" {
+			fptr = fptr2
+			break
+		}
+	}
 	defer fptr.Close()
 
-	fptr = Razor(fptr, .5)
-	//write to end -- the fptr will be directed at EOF upon finishing Razor
-	fptr.WriteString("\nIF THIS ISNT AT THE END OF THE FILE IM GOING TO FREAK")
+	for {
+		//log some more and extend maxBytes for file..
+		//note that this should always be written at the END
+		fptr.WriteString("MOAR LOGGING\n")
+		fptr2, stat := RazorCheck(fptr, 700, .2)
+
+		if stat == "finished" {
+			fptr = fptr2
+			break
+		}
+	}
 }
