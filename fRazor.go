@@ -7,20 +7,13 @@ import (
 	"os"
 )
 
-var rzScalar float64
-
 func checkErr(err error) {
 	if err != nil {
 		panic(err)
 	}
 }
 
-func razor(f *os.File) (*os.File, error) {
-	fstats, err := f.Stat()
-	checkErr(err)
-
-	numBytes := fstats.Size()
-
+func razor(f *os.File, fileSize int64, rzScalar float64) (*os.File, error) {
 	fi, err := f.Stat()
 	checkErr(err)
 
@@ -35,7 +28,6 @@ func razor(f *os.File) (*os.File, error) {
 	var bytesRazord int64
 	bytesRazord = 0
 	numLinesRazord := 0
-	//remove lines until we have removed ~1/rzScalar of file..
 	for {
 		line, err := buf.ReadString('\n')
 		if err == io.EOF {
@@ -49,8 +41,8 @@ func razor(f *os.File) (*os.File, error) {
 		numLinesRazord++
 		bytesRazord += int64(len(line))
 
-		//we have removed the amount we need..so seek file and break from loop
-		if float64(bytesRazord) >= float64(numBytes)*rzScalar {
+		//we have removed the amount we need
+		if float64(bytesRazord) >= float64(fileSize)*rzScalar {
 			break
 		}
 
@@ -69,20 +61,24 @@ func razor(f *os.File) (*os.File, error) {
 	checkErr(err)
 
 	//seek to end of file so our file pointer will be writing in the proper place
-	_, err = f.Seek(fstats.Size(), os.SEEK_SET)
+	_, err = f.Seek(fileSize, os.SEEK_SET)
 	checkErr(err)
 
-	fmt.Printf("Resizing completed!\nRemoved: %v bytes from file with size of %v\n", bytesRazord, numBytes)
+	fmt.Printf("Resizing completed!\nRemoved: %v bytes from file with size of %v\n", bytesRazord, fileSize)
 	return f, nil
 }
 
-//we return the fptr passed in so the outside program writing to the file is pointed to the proper, updated line in memory after line removal
-func Razor(fptr *os.File, scalar float64) *os.File {
-	rzScalar = scalar
-	fptr, err := razor(fptr)
-	if err != nil {
-		panic(err)
+//we return the fptr passed in so the outside program writing to the file is pointed to the proper EOF spot after line removals
+func RazorCheck(fptr *os.File, maxBytes int64, scalar float64) (*os.File, string) {
+	fstats, err := fptr.Stat()
+	checkErr(err)
+
+	//check if file is at or over the size limit
+	if fstats.Size() >= maxBytes {
+		fptr, err = razor(fptr, fstats.Size(), scalar)
+		checkErr(err)
+		return fptr, "finished"
 	}
 
-	return fptr
+	return fptr, "not finished"
 }
